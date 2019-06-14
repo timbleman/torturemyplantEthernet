@@ -1,15 +1,20 @@
 #define F_CPU 16000000UL
-//#define DEBUGSERVO
+
 #include <Servo.h>
 Servo servo_fetcher;
 Servo servo_returner;
+//#define DEBUGSERVO
+#include <SPI.h>
+#include <Ethernet.h>
 //#define DEBUGSTEP
 //#define DEBUGGAME
+#define DEBUGSELECT
+#define SOCKETPORT 23
 #define STEPPEROFFSET 3
 #define STEPPERSPEED 35
 
 
-//------------------structs-----------------------------------
+//------------------structs and variables----------------------
 //stepper struct for variables
 struct stepperMot{
   int stepperstate; //1 to 4, determins pin-output
@@ -39,12 +44,28 @@ struct gameStruct{
   int torture_table; //is a plant on torture table?
 };
 struct gameStruct game;
+
+
+//mac adress of ethernet shield
+byte mac[] = {
+  0x90, 0xA2, 0xDA, 0x00, 0x7B, 0x60 };
+//ip adress, first 3 numbers of gateway, the last one random
+IPAddress ip(10, 90, 1, 170);
+IPAddress myDns(192, 168, 1, 1);
+//copy from ipconfig
+IPAddress gateway(10, 90, 1, 251);
+IPAddress subnet(255, 255, 255, 0);
+
+//Ethernet Server
+EthernetServer server(SOCKETPORT);
+//array for up to 8 clients (more are not supported by the shield)
+EthernetClient clients[8];
 //-----------------------------------------------------
 
 
 
 //variables for user input
-bool plant_selected = false;
+bool plant_selected = false; //for serial input can be removed, i guess
 int selected_plant = 0;
 
 
@@ -71,6 +92,14 @@ void move_servos_to_idle(struct servoMot, struct servoMot);
 
 //game prototype functions
 void initialize_game();
+
+//ethernet prototype functions
+void initialize_ethernet();
+void stop_disconnected_clients();
+void add_new_client();
+void read_from_clients();
+void select_plant(int);
+void write_to_all_clients(char);
 //---------------------------------------------------------
 
 
@@ -79,35 +108,17 @@ void initialize_game();
 void setup() {
   //setup serial, test variables
   Serial.begin(9600);
+  initialize_ethernet();
   initialize_stepper();
   initialize_servos();
   initialize_game();
   calibrate(&stepper1);
 }
 void loop() {
-  
-  //console input for selecting a plant
-  if (!plant_selected){
-    Serial.println("select plant");
-    plant_selected = true;
-  }
-  if (Serial.available() != 0){//wait for input
-    selected_plant = Serial.parseInt();
-    if (selected_plant > 0 && selected_plant <= 4){
-      Serial.println(selected_plant, " selected");
-      stepper1.is_working = 1;
-
-      if(game.torture_table){
-        #ifdef DEBUGGAME
-        Serial.println("returning plant");
-        #endif
-        return_plant();
-        game.torture_table = 0;
-      }
-      
-      plant_selected = false;
-    }
-  }
+  //Serial.println("test");
+  add_new_client();
+  read_from_clients();
+  stop_disconnected_clients();
 
   //turn stepper to selected plant position
   while(stepper1.is_working && stepper1.is_calibrated == 1){
@@ -131,6 +142,8 @@ void loop() {
     #ifdef DEBUGGAME
     Serial.println("fetching my plant");
     #endif
+    write_to_all_clients('r'); //stupid method
+    //server.write('r'); //should only be sent to one client
   }
 
   //debugstuff for stepper
@@ -144,6 +157,140 @@ void loop() {
 }
 //########################################################
 //########################################################
+
+
+//-------------------ethernet methods--------------------------------
+void initialize_ethernet(){
+  #ifdef DEBUGSELECT
+  Serial.println("initializing ethernet");
+  #endif
+  
+  //pin of standard ethernet shield
+  Ethernet.init(10);
+  // initialize ethernet device
+  Ethernet.begin(mac, ip, myDns, gateway, subnet);
+  
+  // Check connected hardware
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("No ethernet shield found.");
+    while (true) {
+      delay(1); // abort, loop infinitely
+    }
+  }
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+  }
+
+  //start server, listen for clients
+  server.begin();
+  Serial.print("Socket server address:");
+  Serial.println(Ethernet.localIP());
+  Serial.print("port:");
+  Serial.print(SOCKETPORT);
+}
+
+
+void read_from_clients(){
+     #ifdef DEBUGSELECT
+     //Serial.println("trying to read from clients");
+     #endif
+      // check for incoming data from all clients
+    for (byte i=0; i < 8; i++) {
+      if (clients[i] && clients[i].available() > 0) {
+        // read bytes from a client
+        byte buffer[80];
+        int count = clients[i].read(buffer, 80);
+        // echo the bytes back to the client:
+        if (clients[i].connected()){
+          if (buffer[0] == '1'){
+            select_plant(1);
+          } else if(buffer[0] == '2'){
+            select_plant(2);
+          } else if (buffer[0] == '3'){
+            select_plant(3);
+          } else if(buffer[0] == '4'){
+            select_plant(4);
+          } else {
+            #ifdef DEBUGSELECT
+            Serial.println("Client is stupid");
+            #endif
+          }
+        }
+      }
+    }
+}
+
+void write_to_all_clients(char c){
+  for (byte i=0; i < 8; i++) {
+      if (clients[i]){
+          clients[i].print(c);
+      }
+  }
+}
+
+void select_plant(int i){
+  #ifdef DEBUGSELECT
+  Serial.print("Plant ");
+  Serial.print(i);
+  Serial.println(" selected");
+  #endif
+
+  stepper1.is_working = 1;
+  
+  if(game.torture_table){
+  
+    #ifdef DEBUGGAME
+    Serial.println("returning plant");
+    #endif
+    
+    return_plant();
+    game.torture_table = 0;
+  }
+
+  selected_plant = i;
+}
+
+void add_new_client(){
+ #ifdef DEBUGSELECT
+ //Serial.println("checking for new clients");
+ #endif
+  
+  // wait for a new client:
+  EthernetClient newClient = server.accept();
+
+  // when the client sends the first byte, say hello:
+  if (newClient) {
+    for (byte i=0; i < 8; i++) {
+      if (!clients[i]) {
+        Serial.print("We have a new client #");
+        Serial.println(i);
+        write_to_all_clients('c');
+        //newClient.write('r');
+        // Once we "accept", the client is no longer tracked by EthernetServer
+        // so we must store it into our list of clients
+        clients[i] = newClient;
+        break;
+      }
+    }
+  }
+}
+
+
+void stop_disconnected_clients(){
+#ifdef DEBUGSELECT
+ //Serial.println("stoping disconnected clients");
+ #endif
+  
+  // stop any clients which disconnect
+  for (byte i=0; i < 8; i++) {
+    if (clients[i] && !clients[i].connected()) {
+      Serial.print("disconnect client #");
+      Serial.println(i);
+    clients[i].stop();
+    }
+  }
+}
+//-------------------------------------------------------------------
 
 
 //---------------------stepper methods--------------------------------
@@ -206,6 +353,7 @@ void calibrate(struct stepperMot *mot){
     #endif
   }
   mot->is_working = 0;//maybe delete, for servo test
+  write_to_all_clients('r'); //stupid
   stepper1.is_calibrated = 1;
 }
 
