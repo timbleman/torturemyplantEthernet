@@ -60,6 +60,10 @@ IPAddress subnet(255, 255, 255, 0);
 EthernetServer server(SOCKETPORT);
 //array for up to 8 clients (more are not supported by the shield)
 EthernetClient clients[8];
+
+//simplified variables
+//EthernetClient client;
+boolean alreadyConnected = false;
 //-----------------------------------------------------
 
 
@@ -97,7 +101,7 @@ void initialize_game();
 void initialize_ethernet();
 void stop_disconnected_clients();
 void add_new_client();
-void read_from_clients();
+void read_from_client();
 void select_plant(int);
 void write_to_all_clients(char);
 //---------------------------------------------------------
@@ -112,13 +116,12 @@ void setup() {
   initialize_stepper();
   initialize_servos();
   initialize_game();
-  calibrate(&stepper1);
+  //calibrate(&stepper1);
 }
 void loop() {
   //Serial.println("test");
-  add_new_client();
-  read_from_clients();
-  stop_disconnected_clients();
+  //add_new_client();
+  read_from_client();
 
   //turn stepper to selected plant position
   while(stepper1.is_working && stepper1.is_calibrated == 1){
@@ -190,11 +193,45 @@ void initialize_ethernet(){
 }
 
 
-void read_from_clients(){
+void read_from_client(){
+    EthernetClient client = server.available();
      #ifdef DEBUGSELECT
      //Serial.println("trying to read from clients");
      #endif
-      // check for incoming data from all clients
+    if (client) {
+      if (!alreadyConnected) {
+        // clear out the input buffer:
+        client.flush();
+        Serial.println("We have a new client");
+        alreadyConnected = true;
+      }
+
+    if (client.available() > 0) {
+      // read the bytes incoming from the client:
+      char thisChar = client.read();
+      // echo the bytes back to the client:
+
+      // echo the bytes to the server as well:
+      
+      Serial.print(thisChar);
+
+      if (thisChar == '1'){
+            select_plant(1);
+          } else if(thisChar == '2'){
+            select_plant(2);
+          } else if (thisChar == '3'){
+            select_plant(3);
+          } else if(thisChar == '4'){
+            select_plant(4);
+          } else {
+            #ifdef DEBUGSELECT
+            Serial.println("Client is stupid");
+            #endif
+      }
+    }   
+  }
+      
+    /*// check for incoming data from all clients
     for (byte i=0; i < 8; i++) {
       if (clients[i] && clients[i].available() > 0) {
         // read bytes from a client
@@ -218,14 +255,11 @@ void read_from_clients(){
         }
       }
     }
+    */
 }
 
 void write_to_all_clients(char c){
-  for (byte i=0; i < 8; i++) {
-      if (clients[i]){
-          clients[i].print(c);
-      }
-  }
+  server.write(c);
 }
 
 //return old plant if necessary and start stepper
@@ -251,7 +285,7 @@ void select_plant(int i){
   selected_plant = i;
 }
 
-void add_new_client(){
+/*void add_new_client(){
  #ifdef DEBUGSELECT
  //Serial.println("checking for new clients");
  #endif
@@ -275,6 +309,10 @@ void add_new_client(){
     }
   }
 }
+=======
+ client = server.available();
+}*/
+
 
 
 void stop_disconnected_clients(){
