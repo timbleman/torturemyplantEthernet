@@ -228,6 +228,7 @@ void write_to_all_clients(char c){
   }
 }
 
+//return old plant if necessary and start stepper
 void select_plant(int i){
   #ifdef DEBUGSELECT
   Serial.print("Plant ");
@@ -258,7 +259,7 @@ void add_new_client(){
   // wait for a new client:
   EthernetClient newClient = server.accept();
 
-  // when the client sends the first byte, say hello:
+  // send 'c' if new client is connected
   if (newClient) {
     for (byte i=0; i < 8; i++) {
       if (!clients[i]) {
@@ -298,7 +299,7 @@ int stepperSteps(struct stepperMot *mot, int pos, int del){
 //-------------jo, maybe !=pos-1 || !=pos || !=pos+1-------------------------
   if (mot->current_pos != pos){ 
       #ifdef DEBUGSTEP
-      //Serial.print("test");
+      Serial.print("test");
       #endif
       //if delaytime is reached move one step
       if (millis() > mot->old_steppertime){
