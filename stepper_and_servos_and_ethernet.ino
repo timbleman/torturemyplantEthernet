@@ -50,7 +50,7 @@ struct gameStruct game;
 byte mac[] = {
   0x90, 0xA2, 0xDA, 0x00, 0x7B, 0x60 };
 //ip adress, first 3 numbers of gateway, the last one random
-IPAddress ip(10, 90, 1, 221);
+IPAddress ip(10, 90, 1, 170);
 IPAddress myDns(192, 168, 1, 1);
 //copy from ipconfig
 IPAddress gateway(10, 90, 1, 251);
