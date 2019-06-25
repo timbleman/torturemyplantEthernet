@@ -116,7 +116,7 @@ void setup() {
   initialize_stepper();
   initialize_servos();
   initialize_game();
-  calibrate(&stepper1);
+  //calibrate(&stepper1);
 }
 void loop() {
   //Serial.println("test");
