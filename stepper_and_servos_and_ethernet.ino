@@ -17,6 +17,11 @@ Servo servo_returner;
 //------------------structs and variables----------------------
 //stepper struct for variables
 struct stepperMot{
+  int pinA0;//4 pins of the motor, only works with AnalogIn-Pins
+  int pinA1;
+  int pinA2;
+  int pinA3;
+  
   int stepperstate; //1 to 4, determins pin-output
   int is_working; //
   unsigned long old_steppertime; //important for delay time
@@ -65,8 +70,6 @@ IPAddress subnet(255, 255, 255, 0);*/
 
 //Ethernet Server
 EthernetServer server(SOCKETPORT);
-//array for up to 8 clients (more are not supported by the shield)
-EthernetClient clients[8];
 
 //simplified variables
 //EthernetClient client;
@@ -203,7 +206,7 @@ void initialize_ethernet(){
 void read_from_client(){
     EthernetClient client = server.available();
      #ifdef DEBUGSELECT
-     //Serial.println("trying to read from clients");
+     //Serial.println("trying to read from client");
      #endif
     if (client) {
       if (!alreadyConnected) {
@@ -216,9 +219,6 @@ void read_from_client(){
     if (client.available() > 0) {
       // read the bytes incoming from the client:
       char thisChar = client.read();
-      // echo the bytes back to the client:
-
-      // echo the bytes to the server as well:
       
       Serial.print(thisChar);
 
@@ -232,7 +232,7 @@ void read_from_client(){
             select_plant(4);
           } else {
             #ifdef DEBUGSELECT
-            Serial.println("Client is stupid");
+            Serial.print(": invalid input");
             #endif
       }
     }   
@@ -270,8 +270,9 @@ void select_plant(int i){
 
 
 //---------------------stepper methods--------------------------------
+
+//turns the stepper motor to position pos with delays del after each step
 int stepperSteps(struct stepperMot *mot, int pos, int del){
-//-------------jo, maybe !=pos-1 || !=pos || !=pos+1-------------------------
   if (mot->current_pos != pos){ 
       #ifdef DEBUGSTEP
       Serial.print("test");
@@ -279,28 +280,28 @@ int stepperSteps(struct stepperMot *mot, int pos, int del){
       //if delaytime is reached move one step
       if (millis() > mot->old_steppertime){
       switch(mot->stepperstate){
-        case 0: PORTC |= (1<<PC0);
-                PORTC &= ~(1<<PC1);
-                PORTC |= (1<<PC2);
-                PORTC &= ~(1<<PC3);
+        case 0: PORTC |= (1<<mot->pinA0);
+                PORTC &= ~(1<<mot->pinA1);
+                PORTC |= (1<<mot->pinA2);
+                PORTC &= ~(1<<mot->pinA3);
                 mot->stepperstate++;
                 break;
-        case 1: PORTC &= ~(1<<PC0);
-                PORTC |= (1<<PC1);
-                PORTC |= (1<<PC2);
-                PORTC &= ~(1<<PC3);
+        case 1: PORTC &= ~(1<<mot->pinA0);
+                PORTC |= (1<<mot->pinA1);
+                PORTC |= (1<<mot->pinA2);
+                PORTC &= ~(1<<mot->pinA3);
                 mot->stepperstate++;
                 break; 
-        case 2: PORTC &= ~(1<<PC0);
-                PORTC |= (1<<PC1);
-                PORTC &= ~(1<<PC2);
-                PORTC |= (1<<PC3);
+        case 2: PORTC &= ~(1<<mot->pinA0);
+                PORTC |= (1<<mot->pinA1);
+                PORTC &= ~(1<<mot->pinA2);
+                PORTC |= (1<<mot->pinA3);
                 mot->stepperstate++;
                 break; 
-        case 3: PORTC |= (1<<PC0);
-                PORTC &= ~(1<<PC1);
-                PORTC &= ~(1<<PC2);
-                PORTC |= (1<<PC3);  
+        case 3: PORTC |= (1<<mot->pinA0);
+                PORTC &= ~(1<<mot->pinA1);
+                PORTC &= ~(1<<mot->pinA2);
+                PORTC |= (1<<mot->pinA3);  
                 mot->stepperstate = 0;
                 break; 
       }
@@ -335,6 +336,10 @@ void calibrate(struct stepperMot *mot){
 
 void initialize_stepper(){
   //setup stepper1 struct
+  stepper1.pinA0 = PC0;
+  stepper1.pinA1 = PC1;
+  stepper1.pinA2 = PC2;
+  stepper1.pinA3 = PC3;
   stepper1.stepperstate = 0;
   stepper1.is_working = 0;
   stepper1.old_steppertime = 0;
