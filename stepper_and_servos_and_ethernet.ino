@@ -50,11 +50,18 @@ struct gameStruct game;
 byte mac[] = {
   0x90, 0xA2, 0xDA, 0x00, 0x7B, 0x60 };
 //ip adress, first 3 numbers of gateway, the last one random
+//Lab
 IPAddress ip(10, 90, 1, 170);
 IPAddress myDns(192, 168, 1, 1);
 //copy from ipconfig
 IPAddress gateway(10, 90, 1, 251);
 IPAddress subnet(255, 255, 255, 0);
+//Tobi
+/*IPAddress ip(192, 168, 0, 20);
+IPAddress myDns(192, 168, 1, 1);
+//copy from ipconfig
+IPAddress gateway(192, 168, 0, 251);
+IPAddress subnet(255, 255, 255, 0);*/
 
 //Ethernet Server
 EthernetServer server(SOCKETPORT);
@@ -230,32 +237,6 @@ void read_from_client(){
       }
     }   
   }
-      
-    /*// check for incoming data from all clients
-    for (byte i=0; i < 8; i++) {
-      if (clients[i] && clients[i].available() > 0) {
-        // read bytes from a client
-        byte buffer[80];
-        int count = clients[i].read(buffer, 80);
-        // echo the bytes back to the client:
-        if (clients[i].connected()){
-          if (buffer[0] == '1'){
-            select_plant(1);
-          } else if(buffer[0] == '2'){
-            select_plant(2);
-          } else if (buffer[0] == '3'){
-            select_plant(3);
-          } else if(buffer[0] == '4'){
-            select_plant(4);
-          } else {
-            #ifdef DEBUGSELECT
-            Serial.println("Client is stupid");
-            #endif
-          }
-        }
-      }
-    }
-    */
 }
 
 void write_to_all_clients(char c){
@@ -285,50 +266,6 @@ void select_plant(int i){
   selected_plant = i;
 }
 
-/*void add_new_client(){
- #ifdef DEBUGSELECT
- //Serial.println("checking for new clients");
- #endif
-  
-  // wait for a new client:
-  EthernetClient newClient = server.accept();
-
-  // send 'c' if new client is connected
-  if (newClient) {
-    for (byte i=0; i < 8; i++) {
-      if (!clients[i]) {
-        Serial.print("We have a new client #");
-        Serial.println(i);
-        write_to_all_clients('c');
-        //newClient.write('r');
-        // Once we "accept", the client is no longer tracked by EthernetServer
-        // so we must store it into our list of clients
-        clients[i] = newClient;
-        break;
-      }
-    }
-  }
-}
-=======
- client = server.available();
-}*/
-
-
-
-void stop_disconnected_clients(){
-#ifdef DEBUGSELECT
- //Serial.println("stoping disconnected clients");
- #endif
-  
-  // stop any clients which disconnect
-  for (byte i=0; i < 8; i++) {
-    if (clients[i] && !clients[i].connected()) {
-      Serial.print("disconnect client #");
-      Serial.println(i);
-    clients[i].stop();
-    }
-  }
-}
 //-------------------------------------------------------------------
 
 
@@ -524,14 +461,14 @@ void initialize_servos(){
   fetcher_struct.current_pos = 0;
   //set idle and targetpos
   fetcher_struct.idle_pos = 80;
-  fetcher_struct.target_pos = 155;
+  fetcher_struct.target_pos = 158;
   fetcher_struct.connected_servo = servo_fetcher;
   //Servo2
   returner_struct.state = 0;
   returner_struct.current_pos = 0;
   //set idle and targetpos
   returner_struct.idle_pos = 120;
-  returner_struct.target_pos = 155;
+  returner_struct.target_pos = 156;
   returner_struct.connected_servo = servo_returner;
 
   //attach outputs to servo
