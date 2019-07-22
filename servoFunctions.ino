@@ -11,6 +11,7 @@ void move_servo(struct servoMot *serv){
     #endif
     
     while(!(serv->state)){
+      //check if servo is at its destination
       if (serv->current_pos == (serv->target_pos)-1){
         serv->state = 1;
       }

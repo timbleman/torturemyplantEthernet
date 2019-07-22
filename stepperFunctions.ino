@@ -6,6 +6,7 @@ int stepperSteps(struct stepperMot *mot, int pos, int del){
       #endif
       //if delaytime is reached move one step
       if (millis() > mot->old_steppertime){
+      //switch between four steps
       switch(mot->stepperstate){
         case 0: PORTC |= (1<<mot->pinA0);
                 PORTC &= ~(1<<mot->pinA1);
@@ -35,8 +36,10 @@ int stepperSteps(struct stepperMot *mot, int pos, int del){
       mot->current_pos++;
       mot->old_steppertime = millis() + del;
     }
+    //return is working
     return 1;
   } else {
+    //return is finished
     return 0;
   }
 }

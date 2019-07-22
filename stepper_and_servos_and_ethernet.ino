@@ -11,7 +11,7 @@ Servo servo_returner;
 #define DEBUGSELECT
 #define SOCKETPORT 23
 #define STEPPEROFFSET 3
-#define STEPPERSPEED 35
+#define STEPPERSPEED 35 //optimal for 5V usage
 
 
 //------------------structs and variables----------------------
@@ -61,25 +61,17 @@ IPAddress myDns(192, 168, 1, 1);
 //copy from ipconfig
 IPAddress gateway(10, 90, 1, 251);
 IPAddress subnet(255, 255, 255, 0);
-//Tobi
-/*IPAddress ip(192, 168, 0, 20);
-IPAddress myDns(192, 168, 1, 1);
-//copy from ipconfig
-IPAddress gateway(192, 168, 0, 251);
-IPAddress subnet(255, 255, 255, 0);*/
 
 //Ethernet Server
 EthernetServer server(SOCKETPORT);
 
 //simplified variables
-//EthernetClient client;
 boolean alreadyConnected = false;
 //-----------------------------------------------------
 
 
 
 //variables for user input
-bool plant_selected = false; //for serial input can be removed, i guess
 int selected_plant = 0;
 
 
@@ -108,12 +100,13 @@ void move_servos_to_idle(struct servoMot, struct servoMot);
 void initialize_game();
 
 //ethernet prototype functions
+//setup variables and IPs
 void initialize_ethernet();
-void stop_disconnected_clients();
-void add_new_client();
+//read and write as socket server
 void read_from_client();
-void select_plant(int);
 void write_to_all_clients(char);
+//select plant, start stepper
+void select_plant(int);
 //---------------------------------------------------------
 
 
@@ -129,14 +122,14 @@ void setup() {
   calibrate(&stepper1);
 }
 void loop() {
-  //Serial.println("test");
-  //add_new_client();
+  //connect client if not already and read byte
   read_from_client();
 
   //turn stepper to selected plant position
   while(stepper1.is_working && stepper1.is_calibrated == 1){
     //move stepper 1 to destination with speed 40
     stepper1.is_working = stepperSteps(&stepper1, stepper1.plant_pos[selected_plant-1], STEPPERSPEED);
+    //trigger returner arm, if there is a plant on the table and the stepper finished
     if(!stepper1.is_working && !game.torture_table){
       game.plant_to_be_fetched = 1;
       
@@ -155,8 +148,7 @@ void loop() {
     #ifdef DEBUGGAME
     Serial.println("fetching my plant");
     #endif
-    write_to_all_clients('r'); //stupid method
-    //server.write('r'); //should only be sent to one client
+    write_to_all_clients('r');
   }
 
   //debugstuff for stepper
@@ -212,16 +204,22 @@ void read_from_client(){
       if (!alreadyConnected) {
         // clear out the input buffer:
         client.flush();
-        Serial.println("We have a new client");
         alreadyConnected = true;
+
+        #ifdef DEBUGSELECT
+        Serial.println("We have a new client");
+        #endif
       }
 
     if (client.available() > 0) {
       // read the bytes incoming from the client:
       char thisChar = client.read();
-      
-      Serial.print(thisChar);
 
+      #ifdef DEBUGSELECT
+      Serial.print(thisChar);
+      #endif
+
+      //no switchcase for chars
       if (thisChar == '1'){
             select_plant(1);
           } else if(thisChar == '2'){
@@ -239,6 +237,7 @@ void read_from_client(){
   }
 }
 
+//only one client connected, so server.write() is viable
 void write_to_all_clients(char c){
   server.write(c);
 }
@@ -251,8 +250,10 @@ void select_plant(int i){
   Serial.println(" selected");
   #endif
 
+  //starts stepper
   stepper1.is_working = 1;
-  
+
+  //check if plant has to be returned
   if(game.torture_table){
   
     #ifdef DEBUGGAME
@@ -282,7 +283,7 @@ void initialize_stepper(){
   stepper1.old_steppertime = 0;
   stepper1.is_calibrated = 0;
   //initialize plant- and current position
-  stepper1.current_pos = 200; //infinite
+  stepper1.current_pos = 200; //big number, not reachable, needed for calibration
   stepper1.plant_pos[0] = 120+STEPPEROFFSET; //plant 1
   stepper1.plant_pos[1] = 170+STEPPEROFFSET;
   stepper1.plant_pos[2] = 20+STEPPEROFFSET;
